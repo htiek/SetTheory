@@ -4,15 +4,13 @@
  */
 #include "ObjectParser.h"
 #include "StrUtils/StrUtils.h"
+#include "SetInternal.h"
 #include <queue>
 #include <algorithm>
 using namespace std;
 
 namespace SetTheory {
     namespace {
-        /* Parses a single object out of a stream of tokens. */
-        Object parseObject(queue<string>& tokens);
-
         /* Given a chunk of text out of a file, extracts up to one token from it and
          * adds it to the queue.
          */
@@ -120,76 +118,80 @@ namespace SetTheory {
                 throw runtime_error("Expected '" + expected + "', but found '" + token + "'.");
             }
         }
+    }
 
-        /* Given a token stream, parses a single set out of the stream, reporting an error if
-         * it's not possible.
-         */
-        Object parseSet(queue<string>& tokens) {
-            /* Grab the first token, which must be an opening brace. */
-            expect("{", tokens);
+    /* Given a token stream, parses a single set out of the stream, reporting an error if
+     * it's not possible.
+     */
+    Object Object::parseSet(queue<string>& tokens) {
+        /* Grab the first token, which must be an opening brace. */
+        expect("{", tokens);
 
-            /* If we see a close brace, it means that we have the empty set. */
+        /* If we see a close brace, it means that we have the empty set. */
+        if (peekAt(tokens) == "}") {
+            tokens.pop();
+            return { make_shared<ActualSet>() };
+        }
+
+        /* Otherwise, we have an argument list to read. So let's go do that! */
+        set<Object> elements;
+        while (true) {
+            elements.insert(parseObject(tokens));
+
+            /* If we see a close brace, we're done. */
             if (peekAt(tokens) == "}") {
                 tokens.pop();
-                return { make_shared<ActualSet>() };
+                return { make_shared<ActualSet>(elements) };
             }
 
-            /* Otherwise, we have an argument list to read. So let's go do that! */
-            set<Object> elements;
-            while (true) {
-                elements.insert(parseObject(tokens));
-
-                /* If we see a close brace, we're done. */
-                if (peekAt(tokens) == "}") {
-                    tokens.pop();
-                    return { make_shared<ActualSet>(elements) };
-                }
-
-                /* Otherwise, we should see a comma. */
-                expect(",", tokens);
-            }
+            /* Otherwise, we should see a comma. */
+            expect(",", tokens);
         }
+    }
 
-        /* Given a token stream pointing at an identifier, parses it into an
-         * Object. The name "Thing" is less than ideal and refers to a non-set
-         * object.
-         */
-        Object parseThing(queue<string>& tokens) {
-            string token = dequeueFrom(tokens);
-            if (token == "{" || token == "}" || token == ",") {
-                throw runtime_error("Expected an object, but found '" + token + "' instead.");
-            }
-            return { make_shared<ActualObject>(token) };
+    /* Given a token stream pointing at an identifier, parses it into an
+     * Object. The name "Thing" is less than ideal and refers to a non-set
+     * object.
+     */
+    Object Object::parseThing(queue<string>& tokens) {
+        string token = dequeueFrom(tokens);
+        if (token == "{" || token == "}" || token == ",") {
+            throw runtime_error("Expected an object, but found '" + token + "' instead.");
         }
+        return { make_shared<ActualObject>(token) };
+    }
 
-        /* Given a token stream, parses an object from it. */
-        Object parseObject(queue<string>& tokens) {
-            /* If the first token is an open brace, read a set. */
-            if (peekAt(tokens) == "{") {
-                return parseSet(tokens);
-            } else {
-                return parseThing(tokens);
-            }
+    /* Given a token stream, parses an object from it. */
+    Object Object::parseObject(queue<string>& tokens) {
+        /* If the first token is an open brace, read a set. */
+        if (peekAt(tokens) == "{") {
+            return parseSet(tokens);
+        } else {
+            return parseThing(tokens);
         }
+    }
 
-        /* Given a token stream, parses it into an object or reports an error in doing so. */
-        Object parseSingleObject(queue<string>& tokens) {
-            /* Grab a single object from it. */
-            auto result = parseObject(tokens);
+    /* Given a token stream, parses it into an object or reports an error in doing so. */
+    Object Object::parseSingleObject(queue<string>& tokens) {
+        /* Grab a single object from it. */
+        auto result = parseObject(tokens);
 
-            if (!tokens.empty()) {
-                throw runtime_error("Unexpected contents found after end of object: [" + dequeueFrom(tokens) + "]");
-            }
-            return result;
+        if (!tokens.empty()) {
+            throw runtime_error("Unexpected contents found after end of object: [" + dequeueFrom(tokens) + "]");
         }
+        return result;
     }
 
     /* Given a stream that contains a definition of a group of people, parses
      * that group of people into a map from names to people. Does what might be
      * best described as pedantic error-checking.
      */
-    Object parse(istream& source) {
+    Object Object::parse(istream& source) {
         queue<string> tokens = tokenize(source);
         return parseSingleObject(tokens);
+    }
+
+    Object parse(istream& source) {
+        return Object::parse(source);
     }
 }

@@ -10,12 +10,19 @@ namespace SetTheory {
      * the overall logic you needed to write.
      */
     bool isSet(Object o) {
+        if (!isValid(o)) throw runtime_error("Uninitialized object.");
         return o.impl->isSet();
     }
 
-    /* Cast to a set using dynamic_cast and extract the underlying set. */
+    /* Ask the underlying object for a set. */
     std::set<Object> asSet(Object o) {
+        if (!isValid(o)) throw runtime_error("Uninitialized object.");
         return o.impl->asSet();
+    }
+
+    /* Check if the internal object exists. */
+    bool isValid(Object obj) {
+        return obj.impl != nullptr;
     }
 
 
