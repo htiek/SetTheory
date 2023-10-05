@@ -62,7 +62,7 @@ namespace SetTheory {
         return false;
     }
     set<Object> ActualObject::asSet() const {
-        throw runtime_error("Object " + name + " is not a set!");
+        throw runtime_error("Your code called asSet(" + name + "), but \"" + name + "\" is not a set.");
     }
     string ActualObject::toString() const {
         return name;
